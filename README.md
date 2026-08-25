@@ -1,77 +1,88 @@
 # Structurally Informed Temporal Multilayer Functional Connectivity (SiTMFC)
 
-Study-specific MATLAB implementation accompanying:
+## Summary
 
-> S. M. Razavi et al., "Structurally Constrained Brain Network Dynamics Reveal Reduced Functional Flexibility in Cocaine Use Disorder."
+This repository provides the study-specific MATLAB implementation accompanying:
 
-This repository implements a subject-specific structural-connectivity (SC) filtering step that transforms temporal functional-connectivity (FC) layers before standard multilayer community detection.
+> S. M. Razavi et al., "Structurally Constrained Brain Network Dynamics Reveal Reduced Functional Flexibility in Cocaine Use Disorder" [1].
 
-## Scope and attribution
-
-The study-specific contribution is the construction of structurally informed functional connectivity (SiFC):
+SiTMFC applies a subject-specific structural-connectivity (SC) filter to every temporal functional-connectivity (FC) layer before temporal multilayer community detection. The structurally informed functional connectivity (SiFC) transformation is
 
 $$
-L_{\mathrm{SC}} = I-D^{-1/2}SD^{-1/2},
-\qquad
+L_{\mathrm{SC}}=I-D^{-1/2}SD^{-1/2},
+$$
+
+$$
 G_{\tau}=(I+\tau L_{\mathrm{SC}})^{-1},
-\qquad
-\widetilde A^{(s)}=G_{\tau}A^{(s)}G_{\tau}^{\mathsf T}.
 $$
 
-Here, $\(S\)$ is a subject-specific SC matrix, $\(D\)$ is its degree matrix, $\(\tau\)$ is the structural smoothing parameter, and $\(A^{(s)}\)$ is the FC matrix for temporal layer $\(s\).$ The transformed matrix $\(\widetilde A^{(s)}\)$ replaces the original FC matrix when constructing the multilayer modularity matrix.
+$$
+\widetilde{A}^{(s)}=G_{\tau}A^{(s)}G_{\tau}^{\mathsf T}.
+$$
 
-The normalized graph Laplacian and graph spectral filtering are established graph-signal-processing methods. The study-specific contribution is their subject-specific bilateral application to every temporal FC layer and integration into the SiTMFC analysis framework.
+Here, $S$ is a subject-specific SC matrix, $D$ is its degree matrix, $\tau$ is the structural smoothing parameter, and $A^{(s)}$ is the FC matrix for temporal layer $s$. The transformed matrix $\widetilde{A}^{(s)}$ replaces the original FC matrix when constructing the temporal multilayer modularity matrix.
 
-**GenLouvain is an external dependency. Its source code and optimization algorithm were not written or modified by the authors of this repository.** GenLouvain remains the work of its original authors and is distributed under its own license.
+The normalized graph Laplacian and graph spectral filtering are established graph-signal-processing methods [5]. The study-specific contribution is their subject-specific bilateral application to every temporal FC layer and integration into the SiTMFC framework.
 
-## Repository file
+The repository contains:
 
-- `apply_sc_prior.m`: converts an FC matrix or an `L x N x N` FC tensor into structurally informed FC using the corresponding `N x N` subject-specific SC matrix.
+- `apply_sc_prior.m`: transforms either one `N x N` FC matrix or an `L x N x N` tensor of ordered temporal FC layers using the matching `N x N` subject-specific SC matrix.
 
-## Requirements
+## Instruction
 
-- MATLAB with support for local functions in function files.
-- FC and SC matrices constructed using the same parcellation and identical node ordering.
-- [GenLouvain v2.2](https://github.com/GenLouvain/GenLouvain) for multilayer community detection.
+### Installation
 
-The study configuration used:
+The required dependencies are:
+
+1. [MATLAB](https://www.mathworks.com/products/matlab.html) [2]. The `apply_sc_prior.m` function uses standard MATLAB functions and does not require an additional MATLAB toolbox.
+2. [GenLouvain v2.2](https://github.com/GenLouvain/GenLouvain) [3], including its `multiord` helper, for temporal multilayer community detection based on the Mucha et al. framework [4].
+
+Download or clone this repository:
+
+```bash
+git clone https://github.com/3sigmalab/SiTMFC.git
+```
+
+Download GenLouvain separately from its original repository. In MATLAB, add both directories and all GenLouvain subdirectories to the MATLAB path:
+
+```matlab
+addpath('/path/to/SiTMFC');
+addpath(genpath('/path/to/GenLouvain'));
+```
+
+GenLouvain includes precompiled MEX files. If they are incompatible with the local MATLAB release or operating system, follow the GenLouvain instructions and run `compile_mex.m` from its `MEX_SRC` directory.
+
+The input data must satisfy the following requirements:
+
+- `FC` is either one `N x N` FC matrix or an `L x N x N` tensor of ordered temporal FC layers.
+- `SC` is the matching participant's `N x N` structural-connectivity matrix.
+- FC and SC use the same parcellation and identical node ordering.
+- FC and SC contain finite values, and every SC node has positive structural degree.
+- `tau` is a nonnegative structural smoothing parameter.
+
+### Sample Run
+
+The following example uses the parameter settings from the accompanying study:
 
 | Parameter | Value |
 |---|---:|
-| Nodes, \(N\) | 200 |
-| Temporal layers, \(L\) | 19 |
-| SC smoothing, $\(\tau\)$ | 0.3 |
-| Modularity resolution, $\(\gamma\)$ | 1 |
-| Ordinal coupling, $\(\omega\)$ | 0.5 |
-| Stochastic repetitions | 100 |
-
-Sensitivity analyses in the study also considered other values of \(\tau\) and temporal-window length.
-
-## Apply the SC-informed transformation
-
-Expected variables:
-
-- `FC`: either one `N x N` FC matrix or an `L x N x N` tensor of ordered FC layers.
-- `SC`: the matching participant's `N x N` structural-connectivity matrix.
-- `tau`: a nonnegative smoothing parameter.
+| Nodes, $N$ | 200 |
+| Temporal layers, $L$ | 19 |
+| SC smoothing, $\tau$ | 0.3 |
+| Modularity resolution, $\gamma$ | 1 |
+| Ordinal coupling, $\omega$ | 0.5 |
+| Optimization repetitions, $O$ | 100 |
 
 ```matlab
-load('subject_fc.mat','FC');  % L x N x N
-load('subject_sc.mat','SC');  % N x N, same node order as FC
+% Load one participant's temporal FC tensor and matching SC matrix.
+load('subject_fc.mat','FC');  % FC: 19 x 200 x 200
+load('subject_sc.mat','SC');  % SC: 200 x 200
 
+% Construct structurally informed FC for every temporal layer.
 tau = 0.3;
 [SiFC,G] = apply_sc_prior(FC,SC,tau);
-```
 
-The function symmetrizes SC and FC, removes self-connections, retains nonnegative weights, constructs the normalized structural Laplacian, and applies the filter to both endpoints of each FC edge. It assumes quality-controlled inputs: SC and FC must be finite, and every SC node must have positive structural degree.
-
-Setting `\tau = 0` gives `G = I` and provides the positive-only FC baseline after the same common preprocessing.
-
-## Construct the multilayer modularity matrix and run GenLouvain
-
-The transformed layers can be used with GenLouvain's `multiord` helper:
-
-```matlab
+% Construct the ordered temporal multilayer modularity matrix.
 N = size(SiFC,2);
 L = size(SiFC,1);
 
@@ -86,6 +97,7 @@ reps  = 100;
 
 [B,twomu] = multiord(A,gamma,omega); %#ok<ASGLU>
 
+% Perform repeated GenLouvain optimizations.
 Ci_all = zeros(N*L,reps);
 Q_all  = zeros(reps,1);
 
@@ -96,33 +108,24 @@ for r = 1:reps
 end
 ```
 
-## Acknowledgement:
+`SiFC` has the same dimensions as `FC`. Each `SiFC(s,:,:)` matrix is the structurally informed FC matrix for temporal layer $s$. `Ci_all` contains the multilayer community assignments from the repeated optimizations.
 
-If this SC-informed transformation is used, cite the accompanying study:
+## Acknowledgement
 
-> Razavi, S. M., et al. "Structurally Constrained Brain Network Dynamics Reveal Reduced Functional Flexibility in Cocaine Use Disorder." 
+The subject-specific SC-informed FC transformation in `apply_sc_prior.m` was developed for the accompanying SiTMFC study [1]. The GenLouvain source code and optimization algorithm were not written or modified by the authors of this repository. GenLouvain is an external dependency developed by Jeub, Bazzi, Jutla, and Mucha [3] and is distributed separately under its own license.
 
-If GenLouvain is used, retain its attribution and cite the software as requested by its authors:
+The temporal multilayer modularity formulation follows Mucha et al. [4], and the graph spectral filtering background follows established graph-signal-processing methodology [5]. The accompanying study uses the open SUDMEX-CONN dataset [6].
 
-> Lucas G. S. Jeub, Marya Bazzi, Inderjit S. Jutla, and Peter J. Mucha. "A generalized Louvain method for community detection implemented in MATLAB." https://github.com/GenLouvain/GenLouvain (2011-2019).
+## References
 
-Also cite the multilayer modularity framework:
+1. Razavi, S. M., et al. "Structurally Constrained Brain Network Dynamics Reveal Reduced Functional Flexibility in Cocaine Use Disorder."
 
-> Mucha, P. J., Richardson, T., Macon, K., Porter, M. A., and Onnela, J.-P. "Community structure in time-dependent, multiscale, and multiplex networks." *Science* 328, 876-878 (2010). https://doi.org/10.1126/science.1184819
+2. The MathWorks, Inc. *MATLAB*. Natick, Massachusetts, United States. [https://www.mathworks.com/products/matlab.html](https://www.mathworks.com/products/matlab.html)
 
-For graph spectral filtering and graph signal processing, a foundational reference is:
+3. Jeub, L. G. S., Bazzi, M., Jutla, I. S., and Mucha, P. J. "A generalized Louvain method for community detection implemented in MATLAB." [https://github.com/GenLouvain/GenLouvain](https://github.com/GenLouvain/GenLouvain) (2011--2019).
 
-> Shuman, D. I., Narang, S. K., Frossard, P., Ortega, A., and Vandergheynst, P. "The emerging field of signal processing on graphs: Extending high-dimensional data analysis to networks and other irregular domains." *IEEE Signal Processing Magazine* 30(3), 83-98 (2013). https://doi.org/10.1109/MSP.2012.2235192
+4. Mucha, P. J., Richardson, T., Macon, K., Porter, M. A., and Onnela, J.-P. "Community structure in time-dependent, multiscale, and multiplex networks." *Science* 328, 876--878 (2010). [https://doi.org/10.1126/science.1184819](https://doi.org/10.1126/science.1184819)
 
-## Code and data availability wording
+5. Shuman, D. I., Narang, S. K., Frossard, P., Ortega, A., and Vandergheynst, P. "The emerging field of signal processing on graphs: Extending high-dimensional data analysis to networks and other irregular domains." *IEEE Signal Processing Magazine* 30(3), 83--98 (2013). [https://doi.org/10.1109/MSP.2012.2235192](https://doi.org/10.1109/MSP.2012.2235192)
 
-If the repository contains the complete study-specific analysis pipeline:
-
-> All study-specific code used to generate the reported results is publicly available at https://github.com/3sigmalab/SiTMFC. GenLouvain is an external dependency and is available separately from its original authors at https://github.com/GenLouvain/GenLouvain.
-
-If the repository contains only `apply_sc_prior.m` and selected examples:
-
-> The study-specific MATLAB implementation of the SC-informed functional-connectivity transformation is publicly available at https://github.com/3sigmalab/SiTMFC. GenLouvain is an external dependency and is available separately from its original authors at https://github.com/GenLouvain/GenLouvain.
-
-The study uses the open SUDMEX-CONN dataset cited in the manuscript (Angeles-Valdez, Diego, et al. "The Mexican magnetic resonance imaging dataset of patients with cocaine use disorder: SUDMEX CONN." Scientific data 9.1 (2022): 133.)
-
+6. Angeles-Valdez, D., Rasgado-Toledo, J., Issa-Garcia, V., et al. "The Mexican magnetic resonance imaging dataset of patients with cocaine use disorder: SUDMEX CONN." *Scientific Data* 9, 133 (2022). [https://doi.org/10.1038/s41597-022-01251-3](https://doi.org/10.1038/s41597-022-01251-3)
