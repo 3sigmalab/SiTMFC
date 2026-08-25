@@ -112,9 +112,7 @@ end
 
 ## Acknowledgement
 
-The subject-specific SC-informed FC transformation in `apply_sc_prior.m` was developed for the accompanying SiTMFC study [1]. The GenLouvain source code and optimization algorithm were not written or modified by the authors of this repository. GenLouvain is an external dependency developed by Jeub, Bazzi, Jutla, and Mucha [3] and is distributed separately under its own license.
-
-The temporal multilayer modularity formulation follows Mucha et al. [4], and the graph spectral filtering background follows established graph-signal-processing methodology [5]. The accompanying study uses the open SUDMEX-CONN dataset [6].
+The subject-specific SC-informed FC transformation in `apply_sc_prior.m` was developed for the accompanying SiTMFC study [1].
 
 ## References
 
