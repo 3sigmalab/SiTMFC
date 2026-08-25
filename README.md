@@ -96,7 +96,7 @@ for r = 1:reps
 end
 ```
 
-## How to cite
+## Acknowledgement:
 
 If this SC-informed transformation is used, cite the accompanying study:
 
